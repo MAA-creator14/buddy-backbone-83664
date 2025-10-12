@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useContactStore, InteractionType } from "@/store/contactStore";
+import { useAddInteraction } from "@/hooks/useInteractions";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -21,7 +21,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
 
 const interactionSchema = z.object({
   type: z.enum(["call", "coffee", "message", "email", "linkedin"]),
@@ -36,7 +35,7 @@ interface InteractionFormProps {
 }
 
 export const InteractionForm = ({ contactId }: InteractionFormProps) => {
-  const { addInteraction } = useContactStore();
+  const addInteractionMutation = useAddInteraction();
 
   const form = useForm<InteractionFormValues>({
     resolver: zodResolver(interactionSchema),
@@ -48,16 +47,11 @@ export const InteractionForm = ({ contactId }: InteractionFormProps) => {
   });
 
   const onSubmit = (data: InteractionFormValues) => {
-    addInteraction({
-      contactId,
-      type: data.type as InteractionType,
-      timestamp: new Date(data.timestamp),
-      notes: data.notes,
-    });
-
-    toast({
-      title: "Interaction logged",
-      description: "Your interaction has been recorded successfully.",
+    addInteractionMutation.mutate({
+      contact_id: contactId,
+      type: data.type,
+      date: new Date(data.timestamp).toISOString(),
+      notes: data.notes || undefined,
     });
 
     form.reset({
@@ -134,8 +128,8 @@ export const InteractionForm = ({ contactId }: InteractionFormProps) => {
               )}
             />
 
-            <Button type="submit" className="w-full">
-              Log Interaction
+            <Button type="submit" className="w-full" disabled={addInteractionMutation.isPending}>
+              {addInteractionMutation.isPending ? "Logging..." : "Log Interaction"}
             </Button>
           </form>
         </Form>

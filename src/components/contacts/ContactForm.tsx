@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Contact, RelationshipType } from "@/store/contactStore";
+// Form types are defined locally
 
 const contactSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -52,7 +52,19 @@ export const ContactForm = ({
   });
 
   const handleSubmit = (data: ContactFormValues) => {
-    onSubmit(data);
+    // Map form field names to database column names
+    const mappedData = {
+      name: data.name,
+      email: data.email || undefined,
+      company: data.company,
+      role: data.role,
+      relationship_type: data.relationshipType,
+      linkedin_url: data.linkedinProfile || undefined,
+      notes: data.notes || undefined,
+      linkedin_auto_sync: data.linkedInAutoSync || false,
+      engagement_frequency: data.engagementFrequency || undefined,
+    };
+    onSubmit(mappedData);
     if (!defaultValues) {
       form.reset();
     }

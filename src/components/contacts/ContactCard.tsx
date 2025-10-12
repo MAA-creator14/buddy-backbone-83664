@@ -1,28 +1,25 @@
-import { Contact, useContactStore, getContactDueStatus } from "@/store/contactStore";
+import { Contact } from "@/hooks/useContacts";
+import { Interaction } from "@/hooks/useInteractions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Pencil, Trash2, Calendar, RefreshCw, CheckCircle2, AlertCircle, Clock } from "lucide-react";
+import { Pencil, Trash2, Calendar, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ContactCardProps {
   contact: Contact;
   onEdit: (contact: Contact) => void;
   onDelete: (id: string) => void;
+  lastInteraction?: Interaction;
+  dueStatus?: 'overdue' | 'due-soon' | 'on-track' | 'no-frequency';
 }
 
-export const ContactCard = ({ contact, onEdit, onDelete }: ContactCardProps) => {
+export const ContactCard = ({ contact, onEdit, onDelete, lastInteraction, dueStatus }: ContactCardProps) => {
   const navigate = useNavigate();
-  const { getInteractionsByContact, interactions: allInteractions } = useContactStore();
-  
-  const interactions = getInteractionsByContact(contact.id);
-  const lastInteraction = interactions[0]; // Already sorted by most recent
-  const dueStatus = getContactDueStatus(contact, allInteractions);
   
   const getDueStatusBadge = () => {
-    if (dueStatus === 'no-frequency') return null;
+    if (!dueStatus || dueStatus === 'no-frequency') return null;
     
     const statusConfig = {
       'overdue': { label: 'Overdue', variant: 'destructive' as const },
@@ -39,36 +36,6 @@ export const ContactCard = ({ contact, onEdit, onDelete }: ContactCardProps) => 
     );
   };
 
-  const getSyncStatusIcon = () => {
-    if (!contact.linkedInAutoSync || !contact.linkedinProfile) return null;
-    
-    switch (contact.syncStatus) {
-      case 'syncing':
-        return <RefreshCw className="h-3 w-3 text-primary animate-spin" />;
-      case 'enabled':
-        return <CheckCircle2 className="h-3 w-3 text-green-600" />;
-      case 'error':
-        return <AlertCircle className="h-3 w-3 text-destructive" />;
-      default:
-        return <RefreshCw className="h-3 w-3 text-muted-foreground" />;
-    }
-  };
-
-  const getSyncStatusText = () => {
-    if (!contact.linkedInAutoSync || !contact.linkedinProfile) return null;
-    
-    switch (contact.syncStatus) {
-      case 'syncing':
-        return 'Syncing LinkedIn...';
-      case 'enabled':
-        return 'LinkedIn auto-sync enabled';
-      case 'error':
-        return 'Sync error';
-      default:
-        return 'Auto-sync enabled';
-    }
-  };
-
   return (
     <Card className="p-4 hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-4">
@@ -79,29 +46,15 @@ export const ContactCard = ({ contact, onEdit, onDelete }: ContactCardProps) => 
           <div className="flex items-center gap-2 flex-wrap">
             <h3 className="font-semibold text-foreground">{contact.name}</h3>
             <Badge variant="secondary" className="capitalize">
-              {contact.relationshipType}
+              {contact.relationship_type}
             </Badge>
             {getDueStatusBadge()}
-            {contact.linkedInAutoSync && contact.linkedinProfile && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center">
-                      {getSyncStatusIcon()}
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p className="text-xs">{getSyncStatusText()}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
           {lastInteraction && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>
-                {formatDistanceToNow(lastInteraction.timestamp, { addSuffix: true })} • {lastInteraction.type}
+                {formatDistanceToNow(new Date(lastInteraction.date), { addSuffix: true })} • {lastInteraction.type}
               </span>
             </div>
           )}

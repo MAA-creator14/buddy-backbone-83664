@@ -1,42 +1,67 @@
-import { useState, useEffect } from "react";
-import { useContactStore, Contact, getContactDueStatus } from "@/store/contactStore";
+import { useState } from "react";
+import { useContacts, useAddContact, useUpdateContact, useDeleteContact, Contact } from "@/hooks/useContacts";
+import { useSuggestions } from "@/hooks/useSuggestions";
+import { useInteractions } from "@/hooks/useInteractions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContactCard } from "@/components/contacts/ContactCard";
 import { ContactForm } from "@/components/contacts/ContactForm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, RefreshCw, LogOut } from "lucide-react";
+import { Plus, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { SuggestionsBanner } from "@/components/linkedin/SuggestionsBanner";
-import { SuggestionsPanel } from "@/components/linkedin/SuggestionsPanel";
-import { useLinkedInSync } from "@/hooks/useLinkedInSync";
-import { DiagnosticsPanel } from "@/components/diagnostics/DiagnosticsPanel";
-import { isSafeModeEnabled } from "@/lib/safeMode";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 
+// Helper function to calculate contact due status
+const getContactDueStatus = (contact: Contact, interactions: any[]): 'overdue' | 'due-soon' | 'on-track' | 'no-frequency' => {
+  if (!contact.engagement_frequency) return 'no-frequency';
+  
+  const contactInteractions = interactions.filter(i => i.contact_id === contact.id);
+  const lastInteraction = contactInteractions[0];
+  if (!lastInteraction) return 'overdue';
+
+  const now = new Date();
+  const lastDate = new Date(lastInteraction.date);
+  const daysSinceContact = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  const frequencyDays: Record<string, number> = {
+    weekly: 7,
+    biweekly: 14,
+    monthly: 30,
+    quarterly: 90,
+    biannually: 180,
+    annually: 365
+  };
+
+  const targetDays = frequencyDays[contact.engagement_frequency];
+  if (!targetDays) return 'no-frequency';
+
+  if (daysSinceContact > targetDays) return 'overdue';
+  if (daysSinceContact > targetDays * 0.8) return 'due-soon';
+  return 'on-track';
+};
+
 export default function Dashboard() {
-  const { loading, signOut } = useAuth(true);
-  const { contacts, updateContact, deleteContact, addContact, getPendingSuggestions, interactions } = useContactStore();
+  const { user, loading, signOut } = useAuth(true);
+  const { data: contacts = [], isLoading: contactsLoading } = useContacts();
+  const { data: allInteractions = [] } = useInteractions("");
+  const addContactMutation = useAddContact();
+  const updateContactMutation = useUpdateContact();
+  const deleteContactMutation = useDeleteContact();
+  
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
-  const [isSuggestionsPanelOpen, setIsSuggestionsPanelOpen] = useState(false);
   const [filterTab, setFilterTab] = useState<'all' | 'due' | 'recent'>('all');
   const navigate = useNavigate();
-  const { syncLinkedInInteractions, isSyncing } = useLinkedInSync();
-  
-  const safeMode = isSafeModeEnabled();
-  const pendingSuggestions = safeMode ? [] : getPendingSuggestions();
 
-  // Calculate contact statuses and sort
+  // Calculate contact statuses
   const contactsWithStatus = contacts.map(contact => ({
     contact,
-    dueStatus: getContactDueStatus(contact, interactions)
+    dueStatus: getContactDueStatus(contact, allInteractions)
   }));
 
   // Filter contacts
@@ -58,35 +83,15 @@ export default function Dashboard() {
   const dueSoonCount = contactsWithStatus.filter(c => c.dueStatus === 'due-soon').length;
   const onTrackCount = contactsWithStatus.filter(c => c.dueStatus === 'on-track').length;
 
-  // Auto-sync on mount and every 15 minutes (disabled in safe mode)
-  useEffect(() => {
-    if (safeMode) {
-      console.log('🛡️ Safe mode enabled - LinkedIn sync disabled');
-      return;
-    }
-    
-    const hasAutoSyncContacts = contacts.some(c => c.linkedInAutoSync);
-    if (!hasAutoSyncContacts) return;
-    
-    try {
-      syncLinkedInInteractions();
-      
-      const interval = setInterval(() => {
-        syncLinkedInInteractions();
-      }, 15 * 60 * 1000);
-
-      return () => clearInterval(interval);
-    } catch (err) {
-      console.error('LinkedIn sync error:', err);
-    }
-  }, [contacts.length, safeMode]);
-
   const handleEditContact = (data: any) => {
-    if (editingContact) {
-      updateContact(editingContact.id, data);
+    if (editingContact && user) {
+      updateContactMutation.mutate({ 
+        id: editingContact.id, 
+        ...data,
+        user_id: user.id 
+      });
       setIsEditDialogOpen(false);
       setEditingContact(null);
-      toast.success("Contact updated successfully");
     }
   };
 
@@ -96,9 +101,10 @@ export default function Dashboard() {
   };
 
   const handleAddContact = (data: any) => {
-    addContact(data);
-    setIsAddDialogOpen(false);
-    toast.success("Contact added successfully");
+    if (user) {
+      addContactMutation.mutate({ ...data, user_id: user.id });
+      setIsAddDialogOpen(false);
+    }
   };
 
   const handleDeleteClick = (id: string) => {
@@ -107,13 +113,12 @@ export default function Dashboard() {
 
   const confirmDelete = () => {
     if (deletingContactId) {
-      deleteContact(deletingContactId);
+      deleteContactMutation.mutate(deletingContactId);
       setDeletingContactId(null);
-      toast.success("Contact deleted successfully");
     }
   };
 
-  if (loading) {
+  if (loading || contactsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -135,17 +140,6 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex gap-2">
-              {!safeMode && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={() => syncLinkedInInteractions()}
-                  disabled={isSyncing}
-                >
-                  <RefreshCw className={`mr-2 h-5 w-5 ${isSyncing ? 'animate-spin' : ''}`} />
-                  {isSyncing ? 'Syncing...' : 'Sync LinkedIn'}
-                </Button>
-              )}
               <Button onClick={() => setIsAddDialogOpen(true)} size="lg">
                 <Plus className="mr-2 h-5 w-5" />
                 Add Contact
@@ -156,13 +150,6 @@ export default function Dashboard() {
               </Button>
             </div>
           </div>
-
-          {!safeMode && (
-            <SuggestionsBanner
-              suggestionCount={pendingSuggestions.length}
-              onViewSuggestions={() => setIsSuggestionsPanelOpen(true)}
-            />
-          )}
 
           {contacts.length === 0 ? (
             <Card className="p-12">
@@ -206,14 +193,20 @@ export default function Dashboard() {
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sortedContacts.map(({ contact }) => (
-                      <ContactCard
-                        key={contact.id}
-                        contact={contact}
-                        onEdit={handleEditClick}
-                        onDelete={handleDeleteClick}
-                      />
-                    ))}
+                    {sortedContacts.map(({ contact, dueStatus }) => {
+                      const contactInteractions = allInteractions.filter(i => i.contact_id === contact.id);
+                      const lastInteraction = contactInteractions[0];
+                      return (
+                        <ContactCard
+                          key={contact.id}
+                          contact={contact}
+                          onEdit={handleEditClick}
+                          onDelete={handleDeleteClick}
+                          lastInteraction={lastInteraction}
+                          dueStatus={dueStatus}
+                        />
+                      );
+                    })}
                   </div>
                 )}
               </TabsContent>
@@ -230,7 +223,17 @@ export default function Dashboard() {
           {editingContact && (
             <ContactForm
               onSubmit={handleEditContact}
-              defaultValues={editingContact}
+              defaultValues={{
+                name: editingContact.name,
+                email: editingContact.email || "",
+                company: editingContact.company || "",
+                role: editingContact.role || "",
+                relationshipType: editingContact.relationship_type as any,
+                linkedinProfile: editingContact.linkedin_url || "",
+                notes: editingContact.notes || "",
+                linkedInAutoSync: editingContact.linkedin_auto_sync || false,
+                engagementFrequency: editingContact.engagement_frequency as any,
+              }}
               submitLabel="Save Changes"
             />
           )}
@@ -265,15 +268,6 @@ export default function Dashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {!safeMode && (
-        <SuggestionsPanel
-          isOpen={isSuggestionsPanelOpen}
-          onClose={() => setIsSuggestionsPanelOpen(false)}
-        />
-      )}
-
-      <DiagnosticsPanel />
     </div>
   );
 }

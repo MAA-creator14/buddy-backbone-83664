@@ -1,12 +1,14 @@
-import { Interaction } from "@/store/contactStore";
+import { Interaction } from "@/hooks/useInteractions";
+import { useDeleteInteraction } from "@/hooks/useInteractions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Coffee, MessageSquare, Mail, Linkedin, Sparkles } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Phone, Coffee, MessageSquare, Mail, Linkedin, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface InteractionFeedProps {
   interactions: Interaction[];
+  contactId: string;
 }
 
 const interactionIcons = {
@@ -25,7 +27,13 @@ const interactionLabels = {
   linkedin: "LinkedIn Message",
 };
 
-export const InteractionFeed = ({ interactions }: InteractionFeedProps) => {
+export const InteractionFeed = ({ interactions, contactId }: InteractionFeedProps) => {
+  const deleteInteractionMutation = useDeleteInteraction();
+
+  const handleDelete = (interactionId: string) => {
+    deleteInteractionMutation.mutate({ id: interactionId, contactId });
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -39,7 +47,7 @@ export const InteractionFeed = ({ interactions }: InteractionFeedProps) => {
         ) : (
           <div className="space-y-4">
             {interactions.map((interaction) => {
-              const Icon = interactionIcons[interaction.type];
+              const Icon = interactionIcons[interaction.type as keyof typeof interactionIcons];
               return (
                 <div
                   key={interaction.id}
@@ -53,26 +61,11 @@ export const InteractionFeed = ({ interactions }: InteractionFeedProps) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <Badge variant="outline" className="capitalize">
-                        {interactionLabels[interaction.type]}
+                        {interactionLabels[interaction.type as keyof typeof interactionLabels]}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {format(new Date(interaction.timestamp), "PPp")}
+                        {format(new Date(interaction.date), "PPp")}
                       </span>
-                      {interaction.isAutoLogged && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Badge variant="secondary" className="gap-1">
-                                <Sparkles className="h-3 w-3" />
-                                Auto-logged
-                              </Badge>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p className="text-xs">Automatically detected from LinkedIn</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
                     </div>
                     {interaction.notes && (
                       <p className="text-sm text-muted-foreground mt-2">
@@ -80,6 +73,14 @@ export const InteractionFeed = ({ interactions }: InteractionFeedProps) => {
                       </p>
                     )}
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(interaction.id)}
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               );
             })}

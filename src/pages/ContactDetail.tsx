@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useContactStore, getContactDueStatus } from "@/store/contactStore";
+import { useContact, useUpdateContact } from "@/hooks/useContacts";
+import { useInteractions } from "@/hooks/useInteractions";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Pencil, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { InteractionForm } from "@/components/interactions/InteractionForm";
@@ -9,19 +10,47 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ContactForm } from "@/components/contacts/ContactForm";
 import { useState } from "react";
-import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
+// Helper function to calculate contact due status
+const getContactDueStatus = (contact: any, interactions: any[]): 'overdue' | 'due-soon' | 'on-track' | 'no-frequency' => {
+  if (!contact.engagement_frequency) return 'no-frequency';
+  
+  const contactInteractions = interactions.filter(i => i.contact_id === contact.id);
+  const lastInteraction = contactInteractions[0];
+  if (!lastInteraction) return 'overdue';
+
+  const now = new Date();
+  const lastDate = new Date(lastInteraction.date);
+  const daysSinceContact = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  const frequencyDays: Record<string, number> = {
+    weekly: 7,
+    biweekly: 14,
+    monthly: 30,
+    quarterly: 90,
+    biannually: 180,
+    annually: 365
+  };
+
+  const targetDays = frequencyDays[contact.engagement_frequency];
+  if (!targetDays) return 'no-frequency';
+
+  if (daysSinceContact > targetDays) return 'overdue';
+  if (daysSinceContact > targetDays * 0.8) return 'due-soon';
+  return 'on-track';
+};
+
 const ContactDetail = () => {
-  const { loading } = useAuth(true);
+  const { user, loading: authLoading } = useAuth(true);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { contacts, getInteractionsByContact, updateContact, interactions: allInteractions } = useContactStore();
+  const { data: contact, isLoading: contactLoading } = useContact(id || "");
+  const { data: interactions = [], isLoading: interactionsLoading } = useInteractions(id || "");
+  const updateContactMutation = useUpdateContact();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const contact = contacts.find((c) => c.id === id);
-  const interactions = contact ? getInteractionsByContact(contact.id) : [];
-  const dueStatus = contact ? getContactDueStatus(contact, allInteractions) : 'no-frequency';
+  const dueStatus = contact ? getContactDueStatus(contact, interactions) : 'no-frequency';
 
   const getDueStatusBadge = () => {
     if (dueStatus === 'no-frequency') return null;
@@ -43,14 +72,17 @@ const ContactDetail = () => {
   };
 
   const handleEditContact = (data: any) => {
-    if (contact) {
-      updateContact(contact.id, data);
+    if (contact && user) {
+      updateContactMutation.mutate({ 
+        id: contact.id, 
+        ...data,
+        user_id: user.id 
+      });
       setIsEditDialogOpen(false);
-      toast.success("Contact updated successfully");
     }
   };
 
-  if (loading) {
+  if (authLoading || contactLoading || interactionsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -94,7 +126,7 @@ const ContactDetail = () => {
                 </p>
                 <div className="flex items-center gap-2 mt-2">
                   <Badge variant="secondary" className="capitalize">
-                    {contact.relationshipType}
+                    {contact.relationship_type}
                   </Badge>
                   {getDueStatusBadge()}
                 </div>
@@ -115,13 +147,13 @@ const ContactDetail = () => {
                     defaultValues={{
                       name: contact.name,
                       email: contact.email || "",
-                      company: contact.company,
-                      role: contact.role,
-                      relationshipType: contact.relationshipType,
-                      linkedinProfile: contact.linkedinProfile || "",
+                      company: contact.company || "",
+                      role: contact.role || "",
+                      relationshipType: contact.relationship_type as any,
+                      linkedinProfile: contact.linkedin_url || "",
                       notes: contact.notes || "",
-                      linkedInAutoSync: contact.linkedInAutoSync || false,
-                      engagementFrequency: contact.engagementFrequency || null,
+                      linkedInAutoSync: contact.linkedin_auto_sync || false,
+                      engagementFrequency: contact.engagement_frequency as any,
                     }}
                     submitLabel="Save Changes"
                   />
@@ -131,10 +163,10 @@ const ContactDetail = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {contact.engagementFrequency && (
+              {contact.engagement_frequency && (
                 <p className="text-sm">
                   <span className="font-medium">Engagement Frequency:</span>{" "}
-                  <span className="capitalize">{contact.engagementFrequency}</span>
+                  <span className="capitalize">{contact.engagement_frequency}</span>
                 </p>
               )}
               {contact.email && (
@@ -142,11 +174,11 @@ const ContactDetail = () => {
                   <span className="font-medium">Email:</span> {contact.email}
                 </p>
               )}
-              {contact.linkedinProfile && (
+              {contact.linkedin_url && (
                 <p className="text-sm">
                   <span className="font-medium">LinkedIn:</span>{" "}
                   <a
-                    href={contact.linkedinProfile}
+                    href={contact.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"
@@ -166,7 +198,7 @@ const ContactDetail = () => {
 
         <div className="grid md:grid-cols-2 gap-6">
           <InteractionForm contactId={contact.id} />
-          <InteractionFeed interactions={interactions} />
+          <InteractionFeed interactions={interactions} contactId={contact.id} />
         </div>
       </div>
     </div>

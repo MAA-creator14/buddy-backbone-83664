@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useContactStore, Contact } from "@/store/contactStore";
+import { useContacts, useAddContact, useUpdateContact, useDeleteContact, Contact } from "@/hooks/useContacts";
 import { ContactForm } from "@/components/contacts/ContactForm";
 import { ContactCard } from "@/components/contacts/ContactCard";
 import { ProgressIndicator } from "@/components/contacts/ProgressIndicator";
@@ -14,9 +14,12 @@ const MIN_CONTACTS = 5;
 const MAX_CONTACTS = 10;
 
 export default function Onboarding() {
-  const { loading } = useAuth(true);
+  const { user, loading } = useAuth(true);
   const navigate = useNavigate();
-  const { contacts, addContact, updateContact, deleteContact } = useContactStore();
+  const { data: contacts = [], isLoading: contactsLoading } = useContacts();
+  const addContactMutation = useAddContact();
+  const updateContactMutation = useUpdateContact();
+  const deleteContactMutation = useDeleteContact();
   const [editingContact, setEditingContact] = useState<Contact | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const isPreview = typeof window !== 'undefined' && window.location.search.includes('__lovable_token');
@@ -25,12 +28,18 @@ export default function Onboarding() {
   const reachedMax = contacts.length >= MAX_CONTACTS;
 
   const handleAddContact = (data: any) => {
-    addContact(data);
+    if (user) {
+      addContactMutation.mutate({ ...data, user_id: user.id });
+    }
   };
 
   const handleEditContact = (data: any) => {
-    if (editingContact) {
-      updateContact(editingContact.id, data);
+    if (editingContact && user) {
+      updateContactMutation.mutate({ 
+        id: editingContact.id, 
+        ...data,
+        user_id: user.id 
+      });
       setIsEditDialogOpen(false);
       setEditingContact(null);
     }
@@ -50,7 +59,7 @@ export default function Onboarding() {
     navigate("/dashboard");
   };
 
-  if (loading) {
+  if (loading || contactsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -126,7 +135,7 @@ export default function Onboarding() {
                       key={contact.id}
                       contact={contact}
                       onEdit={handleEditClick}
-                      onDelete={deleteContact}
+                      onDelete={(id) => deleteContactMutation.mutate(id)}
                     />
                   ))}
                 </div>
@@ -175,11 +184,12 @@ export default function Onboarding() {
               defaultValues={{
                 name: editingContact.name,
                 email: editingContact.email || "",
-                company: editingContact.company,
-                role: editingContact.role,
-                relationshipType: editingContact.relationshipType,
-                linkedinProfile: editingContact.linkedinProfile || "",
+                company: editingContact.company || "",
+                role: editingContact.role || "",
+                relationshipType: editingContact.relationship_type as any,
+                linkedinProfile: editingContact.linkedin_url || "",
                 notes: editingContact.notes || "",
+                engagementFrequency: editingContact.engagement_frequency as any,
               }}
             />
           )}
