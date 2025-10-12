@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Linkedin, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { z } from "zod";
 
 const authSchema = z.object({
@@ -142,33 +142,6 @@ const Auth = () => {
     }
   };
 
-  const handleLinkedInAuth = async () => {
-    try {
-      setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "linkedin_oidc",
-        options: {
-          redirectTo: `${window.location.origin}/`,
-        },
-      });
-
-      if (error) {
-        toast({
-          variant: "destructive",
-          title: "Authentication failed",
-          description: error.message,
-        });
-      }
-    } catch (error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An unexpected error occurred. Please try again.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -260,24 +233,15 @@ const Auth = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <Button
-              variant="outline"
-              onClick={handleGoogleAuth}
-              disabled={loading}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Google
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleLinkedInAuth}
-              disabled={loading}
-            >
-              <Linkedin className="mr-2 h-4 w-4" />
-              LinkedIn
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            onClick={handleGoogleAuth}
+            disabled={loading}
+            className="w-full"
+          >
+            <Mail className="mr-2 h-4 w-4" />
+            Google
+          </Button>
         </CardContent>
       </Card>
     </div>
