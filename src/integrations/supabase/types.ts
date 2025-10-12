@@ -14,7 +14,156 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          company: string | null
+          created_at: string
+          email: string | null
+          engagement_frequency: string | null
+          id: string
+          last_contacted: string | null
+          linkedin_auto_sync: boolean | null
+          linkedin_sync_status: string | null
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          relationship_type: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          engagement_frequency?: string | null
+          id?: string
+          last_contacted?: string | null
+          linkedin_auto_sync?: boolean | null
+          linkedin_sync_status?: string | null
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          relationship_type?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          engagement_frequency?: string | null
+          id?: string
+          last_contacted?: string | null
+          linkedin_auto_sync?: boolean | null
+          linkedin_sync_status?: string | null
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          relationship_type?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interaction_suggestions: {
+        Row: {
+          contact_id: string
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          type: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          type: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interaction_suggestions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interactions: {
+        Row: {
+          contact_id: string
+          created_at: string
+          date: string
+          id: string
+          notes: string | null
+          type: string
+        }
+        Insert: {
+          contact_id: string
+          created_at?: string
+          date: string
+          id?: string
+          notes?: string | null
+          type: string
+        }
+        Update: {
+          contact_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          notes?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
