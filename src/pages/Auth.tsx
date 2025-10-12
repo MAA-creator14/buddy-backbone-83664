@@ -117,10 +117,14 @@ const Auth = () => {
   const handleGoogleAuth = async () => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectTo = `${window.location.origin}/`;
+
+      // Get the OAuth URL without auto-redirect so we can escape the preview iframe
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo,
+          skipBrowserRedirect: true,
         },
       });
 
@@ -130,6 +134,18 @@ const Auth = () => {
           title: "Authentication failed",
           description: error.message,
         });
+        return;
+      }
+
+      if (data?.url) {
+        const url = data.url;
+        const inIframe = window.self !== window.top;
+        // Prefer popup to keep the editor open; fallback to top-level redirect
+        const popup = inIframe ? window.open(url, "oauth-google", "width=500,height=700") : null;
+        if (!popup) {
+          const target = inIframe && window.top ? window.top : window;
+          target.location.href = url;
+        }
       }
     } catch (error) {
       toast({
