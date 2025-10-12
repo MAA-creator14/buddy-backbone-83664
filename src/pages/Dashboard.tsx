@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ContactCard } from "@/components/contacts/ContactCard";
 import { ContactForm } from "@/components/contacts/ContactForm";
+import { DashboardInteractionForm } from "@/components/dashboard/DashboardInteractionForm";
+import { DashboardActivityFeed } from "@/components/dashboard/DashboardActivityFeed";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, LogOut } from "lucide-react";
@@ -166,51 +168,58 @@ export default function Dashboard() {
               </div>
             </Card>
           ) : (
-            <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as typeof filterTab)} className="space-y-6">
-              <TabsList>
-                <TabsTrigger value="all">
-                  All Contacts
-                  <Badge variant="secondary" className="ml-2">{contacts.length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="due">
-                  Due & Overdue
-                  {(overdueCount + dueSoonCount) > 0 && (
-                    <Badge variant="destructive" className="ml-2">{overdueCount + dueSoonCount}</Badge>
-                  )}
-                </TabsTrigger>
-                <TabsTrigger value="recent">
-                  On Track
-                  {onTrackCount > 0 && (
-                    <Badge variant="secondary" className="ml-2">{onTrackCount}</Badge>
-                  )}
-                </TabsTrigger>
-              </TabsList>
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <DashboardInteractionForm contacts={contacts} />
+                <DashboardActivityFeed interactions={allInteractions} contacts={contacts} />
+              </div>
 
-              <TabsContent value={filterTab} className="mt-6">
-                {sortedContacts.length === 0 ? (
-                  <Card className="p-8">
-                    <p className="text-center text-muted-foreground">No contacts in this category</p>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {sortedContacts.map(({ contact, dueStatus }) => {
-                      const contactInteractions = allInteractions.filter(i => i.contact_id === contact.id);
-                      const lastInteraction = contactInteractions[0];
-                      return (
-                        <ContactCard
-                          key={contact.id}
-                          contact={contact}
-                          onEdit={handleEditClick}
-                          onDelete={handleDeleteClick}
-                          lastInteraction={lastInteraction}
-                          dueStatus={dueStatus}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
+              <Tabs value={filterTab} onValueChange={(v) => setFilterTab(v as typeof filterTab)} className="space-y-6">
+                <TabsList>
+                  <TabsTrigger value="all">
+                    All Contacts
+                    <Badge variant="secondary" className="ml-2">{contacts.length}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="due">
+                    Due & Overdue
+                    {(overdueCount + dueSoonCount) > 0 && (
+                      <Badge variant="destructive" className="ml-2">{overdueCount + dueSoonCount}</Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="recent">
+                    On Track
+                    {onTrackCount > 0 && (
+                      <Badge variant="secondary" className="ml-2">{onTrackCount}</Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value={filterTab} className="mt-6">
+                  {sortedContacts.length === 0 ? (
+                    <Card className="p-8">
+                      <p className="text-center text-muted-foreground">No contacts in this category</p>
+                    </Card>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {sortedContacts.map(({ contact, dueStatus }) => {
+                        const contactInteractions = allInteractions.filter(i => i.contact_id === contact.id);
+                        const lastInteraction = contactInteractions[0];
+                        return (
+                          <ContactCard
+                            key={contact.id}
+                            contact={contact}
+                            onEdit={handleEditClick}
+                            onDelete={handleDeleteClick}
+                            lastInteraction={lastInteraction}
+                            dueStatus={dueStatus}
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </>
           )}
         </div>
       </div>
