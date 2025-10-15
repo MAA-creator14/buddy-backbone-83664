@@ -10,7 +10,7 @@ import { DashboardInteractionForm } from "@/components/dashboard/DashboardIntera
 import { DashboardActivityFeed } from "@/components/dashboard/DashboardActivityFeed";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, LogOut } from "lucide-react";
+import { Plus, LogOut, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +142,10 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button onClick={() => navigate("/onboarding")} variant="ghost" size="lg">
+                <ArrowLeft className="mr-2 h-5 w-5" />
+                Back to Onboarding
+              </Button>
               <Button onClick={() => setIsAddDialogOpen(true)} size="lg">
                 <Plus className="mr-2 h-5 w-5" />
                 Add Contact
