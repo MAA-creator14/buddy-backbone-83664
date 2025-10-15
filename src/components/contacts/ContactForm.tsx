@@ -92,19 +92,19 @@ export const ContactForm = ({
 
       if (data && !data.error) {
         // Populate form fields with fetched data
-        if (data.name) form.setValue("name", data.name);
-        if (data.company) form.setValue("company", data.company);
-        if (data.role) form.setValue("role", data.role);
+        if (data.name) form.setValue("name", data.name, { shouldDirty: true, shouldValidate: true });
+        if (data.company) form.setValue("company", data.company, { shouldDirty: true, shouldValidate: true });
+        if (data.role) form.setValue("role", data.role, { shouldDirty: true, shouldValidate: true });
         if (data.linkedinUrl) {
           console.log('Setting LinkedIn URL:', data.linkedinUrl);
-          form.setValue("linkedinProfile", data.linkedinUrl);
+          form.setValue("linkedinProfile", data.linkedinUrl, { shouldDirty: true, shouldValidate: true });
         } else {
           console.log('No linkedinUrl in response data');
         }
         
         // Optionally add bio to notes if not already filled
         if (data.bio && !form.getValues("notes")) {
-          form.setValue("notes", data.bio.substring(0, 500)); // Limit to 500 chars
+          form.setValue("notes", data.bio.substring(0, 500), { shouldDirty: true, shouldValidate: false }); // Limit to 500 chars
         }
 
         toast({

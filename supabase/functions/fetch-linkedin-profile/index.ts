@@ -126,6 +126,51 @@ serve(async (req) => {
         location: profile.location || '',
         bio: profile.summary || '',
       };
+    } else if (data.response && Array.isArray(data.response.elements)) {
+      // Handle Lix LinkedIn search results shape with response.elements
+      const elements = data.response.elements as any[];
+      const entityResults = elements
+        .flatMap((el: any) => (el.items || []))
+        .map((it: any) => it.itemUnion?.entityResult)
+        .filter(Boolean);
+
+      if (!entityResults.length) {
+        return new Response(
+          JSON.stringify({ error: 'No LinkedIn profile found matching the search criteria' }),
+          { 
+            status: 404, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      const first = entityResults.find((er: any) => er?.navigationContext?.url?.includes('/in/')) || entityResults[0];
+      const url: string = first?.navigationContext?.url || '';
+      const nameFromImage: string = first?.image?.accessibilityText || '';
+      const titleText: string = first?.title?.text || '';
+      const subtitleText: string = first?.subtitle?.text || first?.primarySubtitleText?.text || '';
+
+      let role = '';
+      let company = '';
+      const text = subtitleText || titleText;
+      if (text) {
+        const idx = text.toLowerCase().indexOf(' at ');
+        if (idx !== -1) {
+          role = text.slice(0, idx).trim();
+          company = text.slice(idx + 4).trim();
+        } else {
+          role = text;
+        }
+      }
+
+      profileData = {
+        name: nameFromImage || titleText || '',
+        company,
+        role,
+        linkedinUrl: url,
+        location: '',
+        bio: '',
+      };
     } else {
       // Direct profile fetch returns an object
       const currentExperience = data.experience?.[0];
