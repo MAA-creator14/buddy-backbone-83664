@@ -58,6 +58,9 @@ export const ContactForm = ({
     },
   });
 
+  // Watch the LinkedIn profile field to enable/disable the fetch button
+  const linkedinProfileValue = form.watch("linkedinProfile");
+
   const handleFetchLinkedInProfile = async () => {
     const linkedinUrl = form.getValues("linkedinProfile");
     
@@ -259,7 +262,7 @@ export const ContactForm = ({
                   type="button"
                   variant="outline"
                   onClick={handleFetchLinkedInProfile}
-                  disabled={isFetchingLinkedIn || !field.value}
+                  disabled={isFetchingLinkedIn || !linkedinProfileValue || linkedinProfileValue.trim() === ""}
                 >
                   {isFetchingLinkedIn ? (
                     <>
