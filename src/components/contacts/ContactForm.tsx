@@ -7,6 +7,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Loader2 } from "lucide-react";
 // Form types are defined locally
 
 const contactSchema = z.object({
@@ -36,6 +40,9 @@ export const ContactForm = ({
   defaultValues,
   submitLabel = "Add Contact" 
 }: ContactFormProps) => {
+  const { toast } = useToast();
+  const [isFetchingLinkedIn, setIsFetchingLinkedIn] = useState(false);
+  
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactSchema),
     defaultValues: defaultValues || {
@@ -50,6 +57,58 @@ export const ContactForm = ({
       engagementFrequency: null,
     },
   });
+
+  const handleFetchLinkedInProfile = async () => {
+    const linkedinUrl = form.getValues("linkedinProfile");
+    
+    if (!linkedinUrl) {
+      toast({
+        title: "LinkedIn URL Required",
+        description: "Please enter a LinkedIn profile URL first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsFetchingLinkedIn(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-linkedin-profile', {
+        body: { linkedinUrl }
+      });
+
+      if (error) throw error;
+
+      if (data && !data.error) {
+        // Populate form fields with fetched data
+        if (data.name) form.setValue("name", data.name);
+        if (data.company) form.setValue("company", data.company);
+        if (data.role) form.setValue("role", data.role);
+        if (data.linkedinUrl) form.setValue("linkedinProfile", data.linkedinUrl);
+        
+        // Optionally add bio to notes if not already filled
+        if (data.bio && !form.getValues("notes")) {
+          form.setValue("notes", data.bio.substring(0, 500)); // Limit to 500 chars
+        }
+
+        toast({
+          title: "Profile Fetched",
+          description: "LinkedIn profile data has been loaded into the form",
+        });
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('Error fetching LinkedIn profile:', error);
+      toast({
+        title: "Failed to Fetch Profile",
+        description: error.message || "Could not retrieve LinkedIn profile data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsFetchingLinkedIn(false);
+    }
+  };
 
   const handleSubmit = (data: ContactFormValues) => {
     // Map form field names to database column names
@@ -192,9 +251,26 @@ export const ContactForm = ({
           render={({ field }) => (
             <FormItem>
               <FormLabel>LinkedIn Profile (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="https://linkedin.com/in/username" {...field} />
-              </FormControl>
+              <div className="flex gap-2">
+                <FormControl>
+                  <Input placeholder="https://linkedin.com/in/username" {...field} />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleFetchLinkedInProfile}
+                  disabled={isFetchingLinkedIn || !field.value}
+                >
+                  {isFetchingLinkedIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Fetching...
+                    </>
+                  ) : (
+                    "Fetch Profile"
+                  )}
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
