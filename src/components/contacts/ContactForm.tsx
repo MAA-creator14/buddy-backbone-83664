@@ -88,12 +88,19 @@ export const ContactForm = ({
 
       if (error) throw error;
 
+      console.log('LinkedIn profile data received:', data);
+
       if (data && !data.error) {
         // Populate form fields with fetched data
         if (data.name) form.setValue("name", data.name);
         if (data.company) form.setValue("company", data.company);
         if (data.role) form.setValue("role", data.role);
-        if (data.linkedinUrl) form.setValue("linkedinProfile", data.linkedinUrl);
+        if (data.linkedinUrl) {
+          console.log('Setting LinkedIn URL:', data.linkedinUrl);
+          form.setValue("linkedinProfile", data.linkedinUrl);
+        } else {
+          console.log('No linkedinUrl in response data');
+        }
         
         // Optionally add bio to notes if not already filled
         if (data.bio && !form.getValues("notes")) {

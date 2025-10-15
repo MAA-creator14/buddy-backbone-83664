@@ -95,6 +95,7 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log('Successfully fetched LinkedIn profile data');
+    console.log('Raw API response:', JSON.stringify(data, null, 2));
 
     // Handle search results vs direct profile fetch
     let profileData;
@@ -137,6 +138,8 @@ serve(async (req) => {
         bio: data.aboutSummaryText || '',
       };
     }
+
+    console.log('Profile data to return:', JSON.stringify(profileData, null, 2));
 
     return new Response(
       JSON.stringify(profileData),
