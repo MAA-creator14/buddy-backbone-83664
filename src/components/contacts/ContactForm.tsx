@@ -63,11 +63,13 @@ export const ContactForm = ({
 
   const handleFetchLinkedInProfile = async () => {
     const linkedinUrl = form.getValues("linkedinProfile");
+    const name = form.getValues("name");
+    const company = form.getValues("company");
     
-    if (!linkedinUrl) {
+    if (!linkedinUrl && !name) {
       toast({
-        title: "LinkedIn URL Required",
-        description: "Please enter a LinkedIn profile URL first",
+        title: "Information Required",
+        description: "Please enter either a LinkedIn URL or a name to fetch the profile",
         variant: "destructive",
       });
       return;
@@ -77,7 +79,11 @@ export const ContactForm = ({
 
     try {
       const { data, error } = await supabase.functions.invoke('fetch-linkedin-profile', {
-        body: { linkedinUrl }
+        body: { 
+          linkedinUrl: linkedinUrl || undefined,
+          name: name || undefined,
+          company: company || undefined
+        }
       });
 
       if (error) throw error;
@@ -262,7 +268,7 @@ export const ContactForm = ({
                   type="button"
                   variant="outline"
                   onClick={handleFetchLinkedInProfile}
-                  disabled={isFetchingLinkedIn || !linkedinProfileValue || linkedinProfileValue.trim() === ""}
+                  disabled={isFetchingLinkedIn}
                 >
                   {isFetchingLinkedIn ? (
                     <>
