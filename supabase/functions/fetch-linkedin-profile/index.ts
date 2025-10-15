@@ -43,22 +43,32 @@ serve(async (req) => {
       // Fetch by LinkedIn URL
       console.log('Fetching LinkedIn profile by URL:', linkedinUrl);
       apiUrl = `https://api.lix-it.com/v1/person?profile_link=${encodeURIComponent(linkedinUrl)}`;
+      
+      response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': LIX_API_KEY,
+        },
+      });
     } else {
-      // Search by name and company
+      // Search by name and company using LinkedIn search URL
       console.log('Searching LinkedIn profile by name:', name, 'company:', company);
-      const params = new URLSearchParams({ name: name! });
-      if (company) {
-        params.append('company', company);
-      }
-      apiUrl = `https://api.lix-it.com/v1/search/person?${params.toString()}`;
+      
+      // Build LinkedIn search URL
+      const keywords = company ? `${name} ${company}` : name;
+      const linkedinSearchUrl = `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(keywords!)}`;
+      
+      console.log('LinkedIn search URL:', linkedinSearchUrl);
+      
+      apiUrl = `https://api.lix-it.com/v1/li/linkedin/search/people?url=${encodeURIComponent(linkedinSearchUrl)}`;
+      
+      response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': LIX_API_KEY,
+        },
+      });
     }
-
-    response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': LIX_API_KEY,
-      },
-    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -84,31 +94,37 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Successfully fetched LinkedIn profile');
+    console.log('Successfully fetched LinkedIn profile data');
 
     // Handle search results vs direct profile fetch
     let profileData;
     
-    if (Array.isArray(data) && data.length > 0) {
-      // Search API returns an array, use the first result
-      const profile = data[0];
+    if (data.searchResponse && data.searchResponse.people) {
+      // LinkedIn search API returns searchResponse with people array
+      const people = data.searchResponse.people;
+      
+      if (people.length === 0) {
+        return new Response(
+          JSON.stringify({ error: 'No LinkedIn profile found matching the search criteria' }),
+          { 
+            status: 404, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
+      // Use the first result
+      const profile = people[0];
       const currentExperience = profile.experience?.[0];
+      
       profileData = {
         name: profile.name || '',
-        company: currentExperience?.organisation?.name || '',
-        role: currentExperience?.title || profile.description || '',
-        linkedinUrl: profile.link || '',
+        company: currentExperience?.organisation?.name || profile.currentPositions?.[0]?.companyName || '',
+        role: currentExperience?.title || profile.currentPositions?.[0]?.title || profile.headline || '',
+        linkedinUrl: profile.profileLink || `https://www.linkedin.com/in/${profile.publicIdentifier || ''}`,
         location: profile.location || '',
-        bio: profile.aboutSummaryText || '',
+        bio: profile.summary || '',
       };
-    } else if (Array.isArray(data) && data.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'No LinkedIn profile found matching the search criteria' }),
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
     } else {
       // Direct profile fetch returns an object
       const currentExperience = data.experience?.[0];
